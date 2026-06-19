@@ -92,7 +92,7 @@ black --check app tests && isort --check-only app tests && ruff check app tests
 - **Имитация внешнего сбоя**: вероятность задаётся через `BOOKING_FAILURE_PROBABILITY` (`0.15` по умолчанию). При сбое статус становится `failed`, при успехе — `confirmed`, а mock-уведомление пишется в JSON-лог и сохраняется в поле `notification_log`.
 - **Retry/backoff**: Celery-задача настроена на retry с экспоненциальным backoff для инфраструктурных ошибок (`ConnectionError`, `TimeoutError`). Бизнес-сбой по условию задания фиксируется как `failed`.
 - **Rate limiting**: `POST /bookings` защищён простым in-memory лимитом по IP (`RATE_LIMIT_PER_MINUTE`). Для production лучше заменить его на Redis-based limiter.
-- **Тестируемость без Docker**: API-тесты подменяют service-слой, а worker-тесты проверяют бизнес-логику на fake repository. Это позволяет запускать `pytest` без PostgreSQL/Redis/Docker, сохраняя разделение слоёв.
+- **Тестируемость без Docker**: Тесты используют отдельную SQLite-базу через SQLAlchemy ORM и dependency override FastAPI, а постановка Celery-задачи мокается, чтобы `pytest` запускался из корня без PostgreSQL/Redis/Docker. Worker-тесты проверяют бизнес-логику обработки статусов и идемпотентность на той же тестовой БД.
 
 ## Структура проекта
 

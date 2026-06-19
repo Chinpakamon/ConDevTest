@@ -2,9 +2,9 @@ import logging
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import tasks
 from app.api.booking import consts, exceptions, repository, schemas
 from app.core.database import models
-from app.tasks import process_booking
 
 logger = logging.getLogger(__name__)
 
@@ -22,14 +22,16 @@ class BookingService:
         if not booking:
             raise exceptions.BookingNotFoundException()
         return booking
-    
+
     @staticmethod
     async def create_booking(
         data: schemas.CreateBookingRequestSchemas,
         session: AsyncSession,
     ) -> schemas.CreateBookingResponseSchemas:
-        booking = await repository.BookingRepository.insert_booking(data=data, session=session)
-        process_booking.delay(booking.id)
+        booking = await repository.BookingRepository.insert_booking(
+            data=data, session=session
+        )
+        tasks.process_booking.delay(booking.id)
         return schemas.CreateBookingResponseSchemas.model_validate(booking)
 
     @staticmethod
@@ -45,18 +47,21 @@ class BookingService:
 
     @staticmethod
     async def get_booking_list(
-        data: schemas.ListBookingRequestSchemas,
+        params: schemas.ListBookingRequestSchemas,
         session: AsyncSession,
     ) -> schemas.ListBookingResponseSchemas:
         bookings, total = await repository.BookingRepository.select_bookings(
-            data=data,
+            params=params,
             session=session,
         )
         return schemas.ListBookingResponseSchemas(
-            items=[schemas.BookingResponseSchemas.model_validate(booking) for booking in bookings],
+            items=[
+                schemas.BookingResponseSchemas.model_validate(booking)
+                for booking in bookings
+            ],
             total=total,
-            limit=data.limit,
-            offset=data.offset,
+            limit=params.limit,
+            offset=params.offset,
         )
 
     @staticmethod
@@ -64,7 +69,9 @@ class BookingService:
         booking_id: int,
         session: AsyncSession,
     ) -> schemas.DeleteBookingResponseSchemas:
-        booking = await BookingService._get_booking_or_raise(booking_id=booking_id, session=session)
+        booking = await BookingService._get_booking_or_raise(
+            booking_id=booking_id, session=session
+        )
         if booking.status != consts.BookingStatus.PENDING:
             raise exceptions.BookingCannotBeCancelledException()
         await repository.BookingRepository.update_booking_status(
@@ -81,11 +88,16 @@ class BookingService:
         *,
         should_fail: bool,
     ) -> models.Booking:
-        booking = await BookingService._get_booking_or_raise(booking_id=booking_id, session=session)
+        booking = await BookingService._get_booking_or_raise(
+            booking_id=booking_id, session=session
+        )
         if booking.status != consts.BookingStatus.PENDING:
             logger.info(
                 "booking_processing_skipped",
-                extra={"booking_id": booking.id, "booking_status": booking.status.value},
+                extra={
+                    "booking_id": booking.id,
+                    "booking_status": booking.status.value,
+                },
             )
             return booking
         if should_fail:
@@ -97,7 +109,10 @@ class BookingService:
         notification_log = f"Mock notification sent for booking {booking.id} to {booking.name}"
         logger.info(
             "mock_notification_sent",
-            extra={"booking_id": booking.id, "service_type": booking.service_type},
+            extra={
+                "booking_id": booking.id,
+                "service_type": booking.service_type,
+            },
         )
         return await repository.BookingRepository.update_booking_status(
             booking=booking,

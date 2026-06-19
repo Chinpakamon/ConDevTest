@@ -37,16 +37,18 @@ class BookingRepository:
         booking_id: int,
         session: AsyncSession,
     ) -> models.Booking | None:
-        query = sqlalchemy.select(models.Booking).where(models.Booking.id == booking_id)
+        query = sqlalchemy.select(models.Booking).where(
+            models.Booking.id == booking_id
+        )
         return await session.scalar(query)
 
     @staticmethod
     def bookings_filter(
         query: sqlalchemy.Select,
-        data: schemas.ListBookingRequestSchemas,
+        params: schemas.ListBookingRequestSchemas,
     ) -> sqlalchemy.Select:
-        if data.filters and data.filters.status is not None:
-            query = query.where(models.Booking.status == data.filters.status)
+        if params.filters and params.filters.status is not None:
+            query = query.where(models.Booking.status == params.filters.status)
         return query
 
     @staticmethod
@@ -61,22 +63,28 @@ class BookingRepository:
             booking_order.NAME_ASC: models.Booking.name.asc(),
             booking_order.NAME_DESC: models.Booking.name.desc(),
         }
-        return query.order_by(order_mapping.get(order_by, models.Booking.created_at.desc()))
+        return query.order_by(
+            order_mapping.get(order_by, models.Booking.created_at.desc())
+        )
 
     @staticmethod
     async def select_bookings(
-        data: schemas.ListBookingRequestSchemas,
+        params: schemas.ListBookingRequestSchemas,
         session: AsyncSession,
     ) -> tuple[list[sqlalchemy.RowMapping], int]:
         query = sqlalchemy.select(models.Booking)
-        query = BookingRepository.bookings_filter(query=query, data=data)
+        query = BookingRepository.bookings_filter(query=query, params=params)
 
-        count_query = sqlalchemy.select(sqlalchemy.func.count()).select_from(query.subquery())
+        count_query = sqlalchemy.select(sqlalchemy.func.count()).select_from(
+            query.subquery()
+        )
         count_result = await session.execute(count_query)
         total = count_result.scalar_one()
 
-        query = BookingRepository.bookings_order_by(query=query, order_by=data.order_by)
-        query = query.limit(data.limit).offset(data.offset)
+        query = BookingRepository.bookings_order_by(
+            query=query, order_by=params.order_by
+        )
+        query = query.limit(params.limit).offset(params.offset)
 
         try:
             result = await session.scalars(query)

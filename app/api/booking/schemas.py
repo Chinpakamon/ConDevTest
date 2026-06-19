@@ -12,7 +12,9 @@ class BookingResponseSchemas(pydantic.BaseModel):
     service_type: str
     status: consts.BookingStatus
 
-    model_config = pydantic.ConfigDict(from_attributes=True, populate_by_name=True)
+    model_config = pydantic.ConfigDict(
+        from_attributes=True, populate_by_name=True
+    )
 
 
 class CreateBookingRequestSchemas(pydantic.BaseModel):
@@ -24,9 +26,13 @@ class CreateBookingRequestSchemas(pydantic.BaseModel):
 
     @pydantic.field_validator("appointment_at")
     @classmethod
-    def appointment_must_be_future(cls, value: datetime.datetime) -> datetime.datetime:
+    def appointment_must_be_future(
+        cls, value: datetime.datetime
+    ) -> datetime.datetime:
         now = datetime.datetime.now(value.tzinfo or datetime.UTC)
-        comparable = value if value.tzinfo else value.replace(tzinfo=datetime.UTC)
+        comparable = (
+            value if value.tzinfo else value.replace(tzinfo=datetime.UTC)
+        )
         if comparable <= now:
             raise ValueError("Booking datetime must be in the future")
         return value
@@ -41,7 +47,9 @@ class ListBookingFilters(pydantic.BaseModel):
 
 class ListBookingRequestSchemas(pydantic.BaseModel):
     filters: ListBookingFilters | None = None
-    order_by: consts.BookingOrderByType | None = consts.BookingOrderByType.CREATED_AT_DESC
+    order_by: consts.BookingOrderByType | None = (
+        consts.BookingOrderByType.CREATED_AT_DESC
+    )
     limit: int | None = pydantic.Field(default=10, ge=1, le=100)
     offset: int | None = pydantic.Field(default=0, ge=0)
 
