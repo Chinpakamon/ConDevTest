@@ -8,7 +8,7 @@ from app.api.booking import consts
 class BookingResponseSchemas(pydantic.BaseModel):
     id: int
     name: str
-    appointment_at: datetime.datetime = pydantic.Field(alias="appointment_at")
+    appointment_at: datetime.datetime
     service_type: str
     status: consts.BookingStatus
 
@@ -17,8 +17,10 @@ class BookingResponseSchemas(pydantic.BaseModel):
 
 class CreateBookingRequestSchemas(pydantic.BaseModel):
     name: str = pydantic.Field(min_length=1, max_length=120)
-    appointment_at: datetime.datetime
+    appointment_at: datetime.datetime = pydantic.Field(alias="datetime")
     service_type: str = pydantic.Field(min_length=1, max_length=80)
+
+    model_config = pydantic.ConfigDict(populate_by_name=True)
 
     @pydantic.field_validator("appointment_at")
     @classmethod
@@ -34,15 +36,14 @@ class CreateBookingResponseSchemas(BookingResponseSchemas): ...
 
 
 class ListBookingFilters(pydantic.BaseModel):
-    name: str
-    status: str
+    status: consts.BookingStatus | None = None
 
 
 class ListBookingRequestSchemas(pydantic.BaseModel):
     filters: ListBookingFilters | None = None
     order_by: consts.BookingOrderByType | None = consts.BookingOrderByType.CREATED_AT_DESC
-    limit: int | None = 10
-    offset: int | None = 0
+    limit: int | None = pydantic.Field(default=10, ge=1, le=100)
+    offset: int | None = pydantic.Field(default=0, ge=0)
 
 
 class ListBookingResponseSchemas(pydantic.BaseModel):

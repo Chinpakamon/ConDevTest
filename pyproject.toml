@@ -3,6 +3,7 @@ name = "booking_service"
 version = "0.1.0"
 description = "FastAPI booking service with Celery worker"
 authors = ["vladislav <zackieffv@yandex.ru>"]
+package-mode = false
 readme = "README.md"
 
 [tool.poetry.dependencies]
@@ -19,8 +20,11 @@ aiosqlite = ">=0.20.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = ">=8.2.0"
+pytest-asyncio = ">=0.23.7"
 httpx = ">=0.27.0"
 ruff = ">=0.4.8"
+black = ">=24.4.2"
+isort = ">=5.13.2"
 
 [build-system]
 requires = ["poetry-core"]
@@ -28,3 +32,11 @@ build-backend = "poetry.core.masonry.api"
 
 [tool.ruff]
 line-length = 120
+
+[tool.black]
+line-length = 120
+target-version = ["py311"]
+
+[tool.isort]
+profile = "black"
+line_length = 120

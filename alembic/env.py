@@ -1,16 +1,18 @@
-from logging.config import fileConfig
+import logging
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from app.core.database import Base
 from app.core.database.models.booking import Booking  # noqa: F401
-from app.core.settings import settings
+from app.core import settings
 
 config = context.config
-config.set_main_option("sqlalchemy.url", settings.database_url)
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+log = logging.getLogger(__name__)
+
+main_config = settings.settings
+sync_url = str(main_config.database_url).replace("postgresql+asyncpg", "postgresql")
+config.set_main_option("sqlalchemy.url", sync_url)
 
 target_metadata = Base.metadata
 
