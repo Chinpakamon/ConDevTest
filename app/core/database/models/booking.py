@@ -17,7 +17,8 @@ class Booking(database.Base):
         index=True,
     )
     name: orm.Mapped[str] = orm.mapped_column(
-        sqlalchemy.String(120), nullable=False
+        sqlalchemy.String(120), 
+        nullable=False
     )
     appointment_at: orm.Mapped[datetime.datetime] = orm.mapped_column(
         sqlalchemy.DateTime(timezone=True),
@@ -29,7 +30,11 @@ class Booking(database.Base):
         nullable=False
     )
     status: orm.Mapped[consts.BookingStatus] = orm.mapped_column(
-        sqlalchemy.Enum(consts.BookingStatus, name="booking_status"), 
+        sqlalchemy.Enum(
+            consts.BookingStatus, 
+            name="booking_status", 
+            values_callable=lambda enum: [item.value for item in enum]
+        ),
         default=consts.BookingStatus.PENDING, 
         nullable=False, 
         index=True

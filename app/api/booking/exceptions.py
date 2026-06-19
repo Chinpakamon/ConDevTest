@@ -1,17 +1,10 @@
-import fastapi
+class BookingNotFoundException(Exception):
+    """Raised when a booking does not exist."""
 
 
-class BookingNotFoundException(fastapi.HTTPException):
-    def __init__(self):
-        super().__init__(
-            status_code=fastapi.status.HTTP_404_NOT_FOUND,
-            detail="Booking not found",
-        )
+class BookingCannotBeCancelledException(Exception):
+    """Raised when a booking is not pending anymore."""
 
 
-class BookingCannotBeCancelledException(fastapi.HTTPException):
-    def __init__(self):
-        super().__init__(
-            status_code=fastapi.status.HTTP_403_FORBIDDEN,
-            detail="Booking cannot be cancelled",
-        )
+class DatabaseException(Exception):
+    """Database operation error."""

@@ -5,6 +5,7 @@ from sqlalchemy import text
 
 from app.api.booking.router import router as booking_router
 from app.core.database.core import engine
+from app.core.logging import configure_logging
 
 
 @asynccontextmanager
@@ -23,11 +24,12 @@ async def lifespan(app: FastAPI):
     print("Database connections closed")
 
 
-def create_app() -> FastAPI:
+def create_app(*, enable_lifespan: bool = True) -> FastAPI:
+    configure_logging()
     app = FastAPI(
         title="Beauty API",
         version="1.0.0",
-        lifespan=lifespan,
+        lifespan=lifespan if enable_lifespan else None,
     )
 
     app.include_router(booking_router)

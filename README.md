@@ -1,30 +1,34 @@
 # Booking Service
 
-Backend-сервис для записи на встречи: REST API создаёт брони, Celery-воркер асинхронно подтверждает их через очередь Redis, а состояние хранится в PostgreSQL.
+Backend-сервис для записи на встречи. REST API создаёт брони, Celery-воркер получает задачу из Redis, асинхронно подтверждает запись или помечает её как failed, а данные хранятся в PostgreSQL.
 
 ## Стек
 
-- **FastAPI**
-- **SQLAlchemy ORM + Alembic**
-- **Celery + Redis**
-- **pytest**
-- **JSON logging**
+- **FastAPI** - HTTP-слой.
+- **SQLAlchemy ORM + Alembic** - доступ к PostgreSQL и миграции.
+- **Celery + Redis** - очередь фоновой обработки и result backend.
+- **pytest** - тесты API и бизнес-логики воркера без поднятого Docker.
+- **JSON logging** - структурированные логи приложения и mock-уведомления.
 
 ## Быстрый запуск
 
-`.env.example` уже содержит рабочие значения для Docker Compose. Если нужно переопределить настройки локально, скопируйте его в `.env` и измените значения.
+1. Подготовьте переменные окружения:
 
-Чтобы скопировать настройки в `.env` выполните:
 ```bash
 cp .env.example .env
 ```
 
-А далее выполните:
+2. Поднимите весь стек одной командой:
+
 ```bash
 docker-compose up --build
 ```
 
-При необходимости миграции можно применить командой `docker-compose run --rm api alembic upgrade head`; приложение также создаёт таблицы при старте для удобства тестового запуска. После запуска API доступен на `http://localhost:8000`, документация — `http://localhost:8000/docs`.
+Контейнер `api` перед стартом применяет миграции командой `alembic upgrade head`. После запуска:
+
+- API: `http://localhost:8000`
+- Swagger UI: `http://localhost:8000/docs`
+- Healthcheck: `http://localhost:8000/health`
 
 ## Примеры API
 
@@ -48,7 +52,7 @@ curl http://localhost:8000/bookings/1
 curl 'http://localhost:8000/bookings?status=confirmed&limit=20&offset=0'
 ```
 
-Отменить pending-бронь:
+Отменить бронь, если она ещё `pending`:
 
 ```bash
 curl -X DELETE http://localhost:8000/bookings/1
@@ -56,14 +60,20 @@ curl -X DELETE http://localhost:8000/bookings/1
 
 ## Тесты и качество
 
-Установить зависимости и запустить тесты из корня репозитория:
+Вариант через Poetry:
 
 ```bash
-pip install -e '.[dev]'
+poetry install --with dev
+poetry run pytest
+```
+
+Если зависимости уже установлены в окружение, тесты запускаются из корня репозитория без Docker:
+
+```bash
 pytest
 ```
 
-Дополнительно:
+Дополнительные команды:
 
 ```bash
 make test
@@ -72,12 +82,14 @@ make lint
 
 ## Технические решения
 
-- **Разделение слоёв**: HTTP-детали находятся в `router`, бизнес-правила — в `service`, а работа с БД — в `repository`.
-- **Идемпотентность воркера**: задача меняет только брони в статусе `pending`. Повторный запуск для `confirmed`, `failed` или `cancelled` возвращает текущий статус и не отправляет повторное уведомление.
-- **Имитация сбоя внешнего сервиса**: воркер использует вероятность `BOOKING_FAILURE_PROBABILITY` (`0.15` по умолчанию). При сбое статус становится `failed`, при успехе — `confirmed` и пишется mock-лог уведомления.
-- **Retry/backoff**: Celery-задача настроена с `retry_backoff` и `retry_jitter`. Бизнес-сбой по условию тестового задания фиксируется как `failed`, а инфраструктурные ошибки Celery может ретраить.
-- **Rate limiting**: `POST /bookings` ограничен простым in-memory лимитом(`RATE_LIMIT_PER_MINUTE`).
-- **Тестируемость без Docker**: FastAPI dependency override подменяет БД на SQLite in-memory, а отправка Celery-задачи мокается в API-тестах.
+- **Разделение слоёв**: `router` содержит только HTTP-контракты, dependency injection, query/body параметры и маппинг доменных ошибок в HTTP-коды; `service` содержит бизнес-правила; `repository` изолирует работу с БД через ORM.
+- **Статусы**: используются значения `pending`, `confirmed`, `failed`, `cancelled`, чтобы API соответствовал тестовому заданию.
+- **Очередь сразу после создания**: `BookingService.create_booking` создаёт запись в БД и ставит `process_booking.delay(booking.id)` в Celery.
+- **Идемпотентность воркера**: обработка выполняется только для `pending`. Повторный запуск для уже `confirmed`, `failed` или `cancelled` возвращает текущий статус и не отправляет повторное уведомление.
+- **Имитация внешнего сбоя**: вероятность задаётся через `BOOKING_FAILURE_PROBABILITY` (`0.15` по умолчанию). При сбое статус становится `failed`, при успехе — `confirmed`, а mock-уведомление пишется в JSON-лог и сохраняется в поле `notification_log`.
+- **Retry/backoff**: Celery-задача настроена на retry с экспоненциальным backoff для инфраструктурных ошибок (`ConnectionError`, `TimeoutError`). Бизнес-сбой по условию задания фиксируется как `failed`.
+- **Rate limiting**: `POST /bookings` защищён простым in-memory лимитом по IP (`RATE_LIMIT_PER_MINUTE`). Для production лучше заменить его на Redis-based limiter.
+- **Тестируемость без Docker**: API-тесты подменяют service-слой, а worker-тесты проверяют бизнес-логику на fake repository. Это позволяет запускать `pytest` без PostgreSQL/Redis/Docker, сохраняя разделение слоёв.
 
 ## Структура проекта
 
@@ -85,17 +97,20 @@ make lint
 app/
   api/
     booking/
-      consts.py       # booking statuses and constants
+      consts.py       # booking statuses and ordering constants
       exceptions.py   # domain exceptions
-      repository.py   # database access layer
-      service.py      # business logic
-      router.py       # HTTP layer
+      repository.py   # database access layer only
+      service.py      # business logic only
+      router.py       # HTTP layer only
       schemas.py      # request/response DTOs
   core/
     settings.py       # application settings
+    logging.py        # JSON logging setup
     database/
       core.py         # engine, session and Base setup
       models/         # SQLAlchemy models
-  tasks.py            # Celery worker task
+  celery_app.py       # Celery application
+  tasks.py            # Celery task entrypoint
+alembic/              # migrations
 tests/                # pytest suite
 ```

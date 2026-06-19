@@ -2,14 +2,14 @@ import enum
 
 
 class BookingStatus(enum.StrEnum):
-    PENDING = "PENDING"
-    CONFIRMED = "CONFIRMED"
-    FAILED = "FAILED"
-    CANCELLED = "CANCELLED"
+    PENDING = "pending"
+    CONFIRMED = "confirmed"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
 
 
 class BookingOrderByType(enum.StrEnum):
-    CREATED_AT_ASC = "CREATED_AT_ASC"
-    CREATED_AT_DESC = "CREATED_AT_DESC"
-    NAME_ASC = "NAME_ASC"
-    NAME_DESC = "NAME_DESC"
+    CREATED_AT_ASC = "created_at_asc"
+    CREATED_AT_DESC = "created_at_desc"
+    NAME_ASC = "name_asc"
+    NAME_DESC = "name_desc"

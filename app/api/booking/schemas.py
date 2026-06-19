@@ -1,4 +1,5 @@
 import datetime
+
 import pydantic
 
 from app.api.booking import consts
@@ -7,7 +8,7 @@ from app.api.booking import consts
 class BookingResponseSchemas(pydantic.BaseModel):
     id: int
     name: str
-    datetime: datetime.datetime = pydantic.Field(alias="appointment_at")
+    appointment_at: datetime.datetime = pydantic.Field(alias="appointment_at")
     service_type: str
     status: consts.BookingStatus
 
@@ -16,13 +17,15 @@ class BookingResponseSchemas(pydantic.BaseModel):
 
 class CreateBookingRequestSchemas(pydantic.BaseModel):
     name: str = pydantic.Field(min_length=1, max_length=120)
-    datetime: datetime.datetime
+    appointment_at: datetime.datetime
     service_type: str = pydantic.Field(min_length=1, max_length=80)
 
-    @pydantic.field_validator("datetime")
+    @pydantic.field_validator("appointment_at")
     @classmethod
     def appointment_must_be_future(cls, value: datetime.datetime) -> datetime.datetime:
-        if value.timestamp() <= datetime.now(value.tzinfo).timestamp():
+        now = datetime.datetime.now(value.tzinfo or datetime.UTC)
+        comparable = value if value.tzinfo else value.replace(tzinfo=datetime.UTC)
+        if comparable <= now:
             raise ValueError("Booking datetime must be in the future")
         return value
 
