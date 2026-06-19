@@ -1,0 +1,26 @@
+[tool.poetry]
+name = "booking-service"
+version = "0.1.0"
+description = "FastAPI booking service with Celery worker"
+authors = ["vladislav <zackieffv@yandex.ru>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.11,<4.0"
+fastapi = ">=0.111.0"
+uvicorn = {extras = ["standard"], version = ">=0.30.0"}
+sqlalchemy = ">=2.0.30"
+psycopg = {extras = ["binary"], version = ">=3.1.19"}
+pydantic-settings = ">=2.2.1"
+celery = {extras = ["redis"], version = ">=5.4.0"}
+python-json-logger = ">=2.0.7"
+alembic = ">=1.13.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = ">=8.2.0"
+httpx = ">=0.27.0"
+ruff = ">=0.4.8"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
